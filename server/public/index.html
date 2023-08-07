@@ -1,0 +1,158 @@
+<div id="container">
+    <canvas id="picture"></canvas>
+    <canvas id="sample1" class="sample"></canvas>
+    <canvas id="sample2" class="sample"></canvas>
+    <canvas id="sample3" class="sample"></canvas>
+
+
+    <input type="file" id="upload">
+    <button onclick="addColor()">Add Color</button>
+    <button onclick="compute()">Compute</button>
+
+</div>
+
+<style>
+    #upload {
+        display: block;
+    }
+    canvas {
+        border: 1px solid black;
+    }
+    .sample {
+        height: 50px;
+        width: 50px;
+    }
+</style>
+
+<script>
+    function compute(){
+        
+    }
+
+    this.color = 1
+    function addColor(){
+        if(this.color < 3)
+            this.color++;
+    }
+
+    let picture = document.getElementById('picture')
+    let ctx = picture.getContext("2d")
+
+
+    document.getElementById('upload').onchange = function(e) {
+        var img = new Image();
+        img.onload = draw;
+        img.onerror = failed;
+        img.src = URL.createObjectURL(this.files[0]);
+    };
+    document.getElementById('picture').onclick = function(e) {
+        console.log(e)
+        let x = e.offsetX
+        let y = e.offsetY
+        let data = ctx.getImageData(x, y, 1, 1).data
+        let red     = data[0]
+        let green   = data[1]
+        let blue    = data[2]
+        let alpha   = data[3]
+        
+        let sample = document.getElementById('sample'+window.color)
+        sample.style.background = "rgba(" + red + "," + green + ", " + blue +","+alpha +")"
+    };
+    function draw() {
+        var canvas = document.getElementById('picture');
+        canvas.width = this.width;
+        canvas.height = this.height;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(this, 0,0);
+    }
+    function failed() {
+        console.error("The provided file couldn't be loaded as an Image media");
+    }
+
+    function findColors(colorArray, dError = 10) {
+        let colors = []
+        for(var color of colorArray) {
+            if(colors.length == 0) {
+                colors.push({id: color, colors: [color]})
+            } else {
+                let index = colors.findIndex(c => Math.abs(c.id - color) <= dError || Math.abs(c.id + color) <= dError)
+                if(index != -1) {
+                    colors[index].colors.push(color)
+                } else {
+                    colors.push({id: color, colors: [color]})
+                }
+            }
+        }
+        return colors
+    }
+
+
+    function averageColor(colorObjects){
+        let colorAverages = []
+        for(var color of colorObjects){
+            let avg = color.colors.reduce((precc, succ) => precc + succ, 0) / color.colors.length
+            colorAverages.push(avg)
+        }
+        return colorAverages
+    }
+
+    function computeDistances(colorArray, dError = 10){
+        let distances = []
+        for(var i=0;i<colorArray.length-1;i++) {
+            let distance = Math.abs(colorArray[i] - colorArray[i+1])
+            distances.push(distance)
+        }
+        return distances
+    }
+
+    const RGBToHSL = (r, g, b) => {
+        r /= 255;
+        g /= 255;
+        b /= 255;
+        const l = Math.max(r, g, b);
+        const s = l - Math.min(r, g, b);
+        const h = s
+            ? l === r
+            ? (g - b) / s
+            : l === g
+            ? 2 + (b - r) / s
+            : 4 + (r - g) / s
+            : 0;
+        return [
+            60 * h < 0 ? 60 * h + 360 : 60 * h,
+            100 * (s ? (l <= 0.5 ? s / (2 * l - s) : s / (2 - (2 * l - s))) : 0),
+            (100 * (2 * l - s)) / 2,
+        ];
+    };
+
+    //0. Rimuovo bianchi e neri
+    //1. Raggruppo colori che considero simili in base al dError
+    //2. Per ogni gruppo eseguo la media dei colori per ridurli ad unico colore effettivo
+    //3. Ordino i colori in ordine crescente
+    //4. Calcolo tutte le distanze: parto dal primo e continuo fino ad arrivare all'ultimo; non calcolo la distanza tra l'ultimo e il primo
+    //5. Calcolo la distanza tra il primo e l'ultimo e la uso come distanza idele che i colori devono avere tra loro
+    //6. Calcolo l'errore di tutte le distanze singole rispetto al target 
+    //7. Calcolo l'errore medio (inverso fitness)
+    function colorFitness(colorArray, dError = 10) {
+        let colorObjects = findColors(colorArray, dError)
+        let colorAvg = averageColor(colorObjects)
+        colorAvg.sort((prec, succ) => prec-succ)
+        let distances = computeDistances(colorAvg, dError)
+        if(colorAvg.length == 1) return 0
+
+        let total
+        
+        if(colorAvg.length > 2) 
+            total = colorAvg[colorAvg.length-1] - colorAvg[0]
+        else if(colorAvg.length == 2)
+            total = 180
+        else total = dError
+
+        let target = total / distances.length
+        let dDistances = distances.map(d => Math.abs(target - d))
+
+        return dDistances.reduce((precc, succ) => precc + succ, 0) / dDistances.length
+    }
+
+
+</script>
