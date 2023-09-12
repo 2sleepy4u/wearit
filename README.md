@@ -33,8 +33,16 @@ Body: {
     }  
 
 
-### api
+### wardrobe 
 
-Api module 
+Module for clothes and outfits.
+
+##### get_user_clothes
+##### update_user_clothes
+##### get_new_outfit
+
+### weather 
+
+Module for weatehr forecasts.
 
 ##### 
